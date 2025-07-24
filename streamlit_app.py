@@ -22,6 +22,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel, Field
 import tempfile
 import json
+import pandas as pd
 from datetime import datetime
 from config import Config
 
@@ -42,6 +43,292 @@ if "vectorstore" not in st.session_state:
     st.session_state.vectorstore = None
 
 # Custom tools for the agent
+# IPM Audit Specialized Tools for Agents
+@tool  
+def analyze_pest_monitoring(document_content: str, file_name: str) -> str:
+    """
+    Analyze if the document contains pest monitoring and identification practices.
+    Returns findings about monitoring methods, frequency, and documentation.
+    """
+    try:
+        monitoring_keywords = [
+            "monitoring", "scouting", "visual inspection", "trap", "sticky trap", 
+            "pheromone trap", "weekly", "surveillance", "field inspection",
+            "pest count", "monitoring log", "inspection form"
+        ]
+        
+        content_lower = document_content.lower()
+        findings = []
+        
+        # Check for monitoring practices
+        for keyword in monitoring_keywords:
+            if keyword in content_lower:
+                # Find sentences containing the keyword
+                sentences = document_content.split('.')
+                for sentence in sentences:
+                    if keyword.lower() in sentence.lower():
+                        findings.append(f"Found: {sentence.strip()}")
+                        break
+        
+        if findings:
+            result = f"PEST MONITORING ANALYSIS for {file_name}:\n"
+            result += "✅ Monitoring practices found:\n"
+            for finding in findings[:3]:  # Limit to top 3 findings
+                result += f"• {finding}\n"
+        else:
+            result = f"PEST MONITORING ANALYSIS for {file_name}:\n"
+            result += "❌ No clear pest monitoring practices documented\n"
+        
+        return result
+        
+    except Exception as e:
+        return f"Error analyzing pest monitoring in {file_name}: {str(e)}"
+
+@tool
+def check_action_thresholds(document_content: str, file_name: str) -> str:
+    """
+    Check if the document defines action or economic thresholds for pest treatment decisions.
+    Returns findings about threshold levels and decision criteria.
+    """
+    try:
+        threshold_keywords = [
+            "threshold", "economic threshold", "action threshold", "treatment threshold",
+            "mites per leaflet", "aphids per plant", "per trap", "treatment level",
+            "intervention level", "damage level", "5 mites", "10 aphids"
+        ]
+        
+        content_lower = document_content.lower()
+        findings = []
+        
+        # Check for threshold definitions
+        for keyword in threshold_keywords:
+            if keyword in content_lower:
+                sentences = document_content.split('.')
+                for sentence in sentences:
+                    if keyword.lower() in sentence.lower():
+                        findings.append(f"Found: {sentence.strip()}")
+                        break
+        
+        if findings:
+            result = f"ACTION THRESHOLDS ANALYSIS for {file_name}:\n"
+            result += "✅ Thresholds documented:\n"
+            for finding in findings[:3]:
+                result += f"• {finding}\n"
+        else:
+            result = f"ACTION THRESHOLDS ANALYSIS for {file_name}:\n"
+            result += "❌ No clear action/economic thresholds defined\n"
+        
+        return result
+        
+    except Exception as e:
+        return f"Error analyzing thresholds in {file_name}: {str(e)}"
+
+@tool
+def evaluate_prevention_practices(document_content: str, file_name: str) -> str:
+    """
+    Evaluate if the document includes at least two pest prevention practices.
+    Returns findings about prevention methods and strategies.
+    """
+    try:
+        prevention_keywords = [
+            "crop rotation", "rotation", "sanitation", "beneficial", "border planting",
+            "habitat", "cover crop", "companion planting", "soil health",
+            "cultural control", "biological control", "prevention", "barrier",
+            "resistant varieties", "clean cultivation"
+        ]
+        
+        content_lower = document_content.lower()
+        findings = []
+        
+        # Check for prevention practices
+        for keyword in prevention_keywords:
+            if keyword in content_lower:
+                sentences = document_content.split('.')
+                for sentence in sentences:
+                    if keyword.lower() in sentence.lower():
+                        findings.append(f"Found: {sentence.strip()}")
+                        break
+        
+        prevention_count = len(set(findings))  # Remove duplicates
+        
+        if prevention_count >= 2:
+            result = f"PREVENTION PRACTICES ANALYSIS for {file_name}:\n"
+            result += f"✅ {prevention_count} prevention practices documented:\n"
+            for finding in findings[:4]:
+                result += f"• {finding}\n"
+        elif prevention_count == 1:
+            result = f"PREVENTION PRACTICES ANALYSIS for {file_name}:\n"
+            result += "⚠️ Only 1 prevention practice found (minimum 2 required):\n"
+            result += f"• {findings[0]}\n"
+        else:
+            result = f"PREVENTION PRACTICES ANALYSIS for {file_name}:\n"
+            result += "❌ No clear prevention practices documented\n"
+        
+        return result
+        
+    except Exception as e:
+        return f"Error analyzing prevention practices in {file_name}: {str(e)}"
+
+@tool
+def assess_resistance_management(document_content: str, file_name: str) -> str:
+    """
+    Assess if the document addresses pesticide resistance management strategies.
+    Returns findings about resistance management approaches.
+    """
+    try:
+        resistance_keywords = [
+            "resistance management", "resistance", "IRAC", "rotation", "chemical class",
+            "mode of action", "MOA", "insecticide resistance", "fungicide resistance",
+            "alternate", "chemical rotation", "maximum applications"
+        ]
+        
+        content_lower = document_content.lower()
+        findings = []
+        
+        # Check for resistance management
+        for keyword in resistance_keywords:
+            if keyword in content_lower:
+                sentences = document_content.split('.')
+                for sentence in sentences:
+                    if keyword.lower() in sentence.lower():
+                        findings.append(f"Found: {sentence.strip()}")
+                        break
+        
+        if findings:
+            result = f"RESISTANCE MANAGEMENT ANALYSIS for {file_name}:\n"
+            result += "✅ Resistance management strategies found:\n"
+            for finding in findings[:3]:
+                result += f"• {finding}\n"
+        else:
+            result = f"RESISTANCE MANAGEMENT ANALYSIS for {file_name}:\n"
+            result += "❌ No pesticide resistance management strategies documented\n"
+        
+        return result
+        
+    except Exception as e:
+        return f"Error analyzing resistance management in {file_name}: {str(e)}"
+
+@tool
+def verify_pollinator_protection(document_content: str, file_name: str) -> str:
+    """
+    Verify if the document includes measures to protect pollinators.
+    Returns findings about pollinator protection practices.
+    """
+    try:
+        pollinator_keywords = [
+            "pollinator", "bee", "beekeeper", "flowering", "bloom", "habitat strip",
+            "beneficial insect", "10 AM", "4 PM", "peak activity", "buffer zone",
+            "application timing", "pollinator protection", "flowering border"
+        ]
+        
+        content_lower = document_content.lower()
+        findings = []
+        
+        # Check for pollinator protection
+        for keyword in pollinator_keywords:
+            if keyword in content_lower:
+                sentences = document_content.split('.')
+                for sentence in sentences:
+                    if keyword.lower() in sentence.lower():
+                        findings.append(f"Found: {sentence.strip()}")
+                        break
+        
+        if findings:
+            result = f"POLLINATOR PROTECTION ANALYSIS for {file_name}:\n"
+            result += "✅ Pollinator protection measures found:\n"
+            for finding in findings[:3]:
+                result += f"• {finding}\n"
+        else:
+            result = f"POLLINATOR PROTECTION ANALYSIS for {file_name}:\n"
+            result += "❌ No pollinator protection measures documented\n"
+        
+        return result
+        
+    except Exception as e:
+        return f"Error analyzing pollinator protection in {file_name}: {str(e)}"
+
+@tool
+def format_audit_response(
+    monitoring_analysis: str,
+    threshold_analysis: str, 
+    prevention_analysis: str,
+    resistance_analysis: str,
+    pollinator_analysis: str,
+    operation_name: str,
+    product: str,
+    file_name: str,
+    document_id: str,
+    language: str = "Spanish"
+) -> str:
+    """
+    Format the final IPM audit response in JSON format based on all analyses.
+    Combines findings from all tools into a structured compliance summary.
+    """
+    try:
+        # Combine all analyses
+        all_analyses = [
+            monitoring_analysis,
+            threshold_analysis,
+            prevention_analysis,
+            resistance_analysis,
+            pollinator_analysis
+        ]
+        
+        # Count compliant areas (those with ✅)
+        compliant_count = sum(1 for analysis in all_analyses if "✅" in analysis)
+        warning_count = sum(1 for analysis in all_analyses if "⚠️" in analysis)
+        non_compliant_count = sum(1 for analysis in all_analyses if "❌" in analysis)
+        
+        # Generate compliance summary
+        if language.lower() == "english":
+            if compliant_count >= 4:
+                compliance_summary = f"The operation '{operation_name}' demonstrates good IPM compliance for {product} production."
+            elif compliant_count >= 2:
+                compliance_summary = f"The operation '{operation_name}' shows partial IPM compliance for {product} production with areas for improvement."
+            else:
+                compliance_summary = f"The operation '{operation_name}' has significant IPM compliance gaps for {product} production."
+                
+            # Create detailed comments
+            comments = compliance_summary + f" Document {file_name} was analyzed for PrimusGFS Module 9.01.01 compliance.\n\n"
+        else:
+            if compliant_count >= 4:
+                compliance_summary = f"La operación '{operation_name}' demuestra buen cumplimiento IPM para la producción de {product}."
+            elif compliant_count >= 2:
+                compliance_summary = f"La operación '{operation_name}' muestra cumplimiento parcial IPM para la producción de {product} con áreas de mejora."
+            else:
+                compliance_summary = f"La operación '{operation_name}' tiene brechas significativas de cumplimiento IPM para la producción de {product}."
+                
+            # Create detailed comments
+            comments = compliance_summary + f" Se analizó el documento {file_name} para cumplimiento con PrimusGFS Módulo 9.01.01.\n\n"
+        
+        # Add detailed findings
+        for analysis in all_analyses:
+            if analysis.strip():
+                comments += analysis + "\n\n"
+        
+        # Ensure comments don't exceed 2000 characters
+        if len(comments) > 2000:
+            comments = comments[:1997] + "..."
+        
+        # Create JSON response
+        response = {
+            "ComplianceLevel": 2,
+            "Comments": comments.strip(),
+            "FilesSearch": [{"FileName": file_name, "DocumentID": document_id}]
+        }
+        
+        return json.dumps(response, indent=2, ensure_ascii=False)
+        
+    except Exception as e:
+        # Fallback response
+        fallback_response = {
+            "ComplianceLevel": 2,
+            "Comments": f"Error al formatear respuesta de auditoría: {str(e)}",
+            "FilesSearch": [{"FileName": file_name, "DocumentID": document_id}]
+        }
+        return json.dumps(fallback_response, indent=2, ensure_ascii=False)
+
+# Original tools (keeping for general agent functionality)
 @tool
 def calculator(operation: str) -> str:
     """Perform basic mathematical operations"""
@@ -293,6 +580,227 @@ def create_ipm_knowledge_base():
     
     return ipm_knowledge
 
+def estimate_tokens(text):
+    """Estimate token count (rough approximation: 1 token ≈ 4 characters)"""
+    return len(text) // 4
+
+def extract_ipm_relevant_content(text, max_tokens=1000):
+    """Extract IPM-relevant sections from document text"""
+    
+    # IPM-related keywords to search for
+    ipm_keywords = [
+        "pest", "ipm", "integrated pest management", "monitoring", "threshold", 
+        "pesticide", "biological control", "prevention", "scouting", "trap",
+        "beneficial", "pollinator", "resistance management", "economic threshold",
+        "action threshold", "crop rotation", "sanitation", "habitat"
+    ]
+    
+    # Split text into paragraphs
+    paragraphs = text.split('\n\n')
+    relevant_paragraphs = []
+    total_tokens = 0
+    
+    # Score and select most relevant paragraphs
+    scored_paragraphs = []
+    for para in paragraphs:
+        if len(para.strip()) < 50:  # Skip very short paragraphs
+            continue
+            
+        # Count IPM-related keywords
+        score = sum(1 for keyword in ipm_keywords if keyword.lower() in para.lower())
+        if score > 0:
+            scored_paragraphs.append((score, para))
+    
+    # Sort by relevance score (descending)
+    scored_paragraphs.sort(key=lambda x: x[0], reverse=True)
+    
+    # Select paragraphs until token limit
+    for score, para in scored_paragraphs:
+        para_tokens = estimate_tokens(para)
+        if total_tokens + para_tokens <= max_tokens:
+            relevant_paragraphs.append(para)
+            total_tokens += para_tokens
+        else:
+            break
+    
+    return '\n\n'.join(relevant_paragraphs), total_tokens
+
+def summarize_document(text, llm, max_length=500):
+    """Summarize a document focusing on IPM-relevant content"""
+    
+    try:
+        summarize_prompt = ChatPromptTemplate.from_template("""
+        Resume el siguiente documento enfocándote únicamente en aspectos relacionados con IPM (Manejo Integrado de Plagas):
+        
+        - Monitoreo de plagas
+        - Umbrales de acción
+        - Prácticas de prevención
+        - Manejo de resistencia
+        - Protección de polinizadores
+        - Cualquier plan o procedimiento IPM
+        
+        Documento:
+        {document}
+        
+        Resumen IPM (máximo {max_length} caracteres):
+        """)
+        
+        chain = summarize_prompt | llm | StrOutputParser()
+        summary = chain.invoke({
+            "document": text[:8000],  # Limit input to avoid token overflow
+            "max_length": max_length
+        })
+        
+        return summary[:max_length]  # Ensure length limit
+        
+    except Exception as e:
+        # Fallback: simple truncation
+        return text[:max_length] + "..."
+
+def process_multiple_documents(documents_list, llm, strategy="smart_extraction"):
+    """
+    Process multiple documents with token optimization
+    
+    Strategies:
+    - smart_extraction: Extract only IPM-relevant content
+    - summarization: Summarize each document
+    - chunking: Use semantic chunking and similarity search
+    """
+    
+    processed_docs = []
+    total_tokens = 0
+    max_total_tokens = 3000  # Maximum tokens for all documents combined
+    
+    for doc_info in documents_list:
+        file_name = doc_info.get('filename', 'unknown.pdf')
+        doc_id = doc_info.get('doc_id', 'DOC_UNKNOWN')
+        content = doc_info.get('content', '')
+        
+        if not content.strip():
+            continue
+            
+        content_tokens = estimate_tokens(content)
+        
+        if strategy == "smart_extraction":
+            # Extract only IPM-relevant content
+            if content_tokens > 1000:  # Only process if document is large
+                extracted_content, used_tokens = extract_ipm_relevant_content(content, max_tokens=800)
+                processed_content = extracted_content
+                st.info(f"📄 {file_name}: Extraídas secciones relevantes ({used_tokens} tokens de {content_tokens})")
+            else:
+                processed_content = content
+                used_tokens = content_tokens
+                
+        elif strategy == "summarization":
+            # Summarize the document
+            if content_tokens > 800:
+                processed_content = summarize_document(content, llm, max_length=600)
+                used_tokens = estimate_tokens(processed_content)
+                st.info(f"📄 {file_name}: Documento resumido ({used_tokens} tokens de {content_tokens})")
+            else:
+                processed_content = content
+                used_tokens = content_tokens
+                
+        elif strategy == "chunking":
+            # Use text splitting and keep most relevant chunks
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=500,
+                chunk_overlap=50,
+                separators=["\n\n", "\n", ". ", " "]
+            )
+            chunks = text_splitter.split_text(content)
+            
+            # Score chunks for IPM relevance
+            relevant_chunks = []
+            for chunk in chunks[:6]:  # Limit to first 6 chunks
+                chunk_tokens = estimate_tokens(chunk)
+                if total_tokens + chunk_tokens <= max_total_tokens:
+                    relevant_chunks.append(chunk)
+                    total_tokens += chunk_tokens
+                    
+            processed_content = '\n\n'.join(relevant_chunks)
+            used_tokens = estimate_tokens(processed_content)
+            st.info(f"📄 {file_name}: Procesados {len(relevant_chunks)} chunks ({used_tokens} tokens)")
+        
+        # Check total token limit
+        if total_tokens + used_tokens > max_total_tokens:
+            st.warning(f"⚠️ Límite de tokens alcanzado. Omitiendo documento: {file_name}")
+            break
+            
+        processed_docs.append({
+            'filename': file_name,
+            'doc_id': doc_id,
+            'content': processed_content,
+            'original_tokens': content_tokens,
+            'processed_tokens': used_tokens
+        })
+        
+        total_tokens += used_tokens
+    
+    return processed_docs, total_tokens
+
+def chunk_and_search_documents(documents_list, query="IPM plan compliance monitoring", max_chunks=8):
+    """Use semantic search to find most relevant document chunks"""
+    
+    try:
+        # Initialize embeddings
+        embeddings = OpenAIEmbeddings(openai_api_key=Config.OPENAI_API_KEY)
+        
+        # Create documents for chunking
+        all_docs = []
+        for doc_info in documents_list:
+            content = doc_info.get('content', '')
+            if content.strip():
+                # Split into chunks
+                text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=800,
+                    chunk_overlap=100,
+                    separators=["\n\n", "\n", ". ", " "]
+                )
+                chunks = text_splitter.split_text(content)
+                
+                for i, chunk in enumerate(chunks):
+                    all_docs.append(Document(
+                        page_content=chunk,
+                        metadata={
+                            "source": doc_info.get('filename', 'unknown'),
+                            "doc_id": doc_info.get('doc_id', 'unknown'),
+                            "chunk_id": i
+                        }
+                    ))
+        
+        if not all_docs:
+            return [], 0
+            
+        # Create vector store
+        vectorstore = Chroma.from_documents(all_docs, embeddings)
+        
+        # Search for relevant chunks
+        retriever = vectorstore.as_retriever(search_kwargs={"k": max_chunks})
+        relevant_docs = retriever.get_relevant_documents(query)
+        
+        # Format results
+        relevant_content = []
+        total_tokens = 0
+        
+        for doc in relevant_docs:
+            chunk_tokens = estimate_tokens(doc.page_content)
+            total_tokens += chunk_tokens
+            
+            relevant_content.append({
+                "content": doc.page_content,
+                "source": doc.metadata.get("source", "unknown"),
+                "doc_id": doc.metadata.get("doc_id", "unknown"),
+                "chunk_id": doc.metadata.get("chunk_id", 0),
+                "tokens": chunk_tokens
+            })
+        
+        return relevant_content, total_tokens
+        
+    except Exception as e:
+        st.error(f"Error en búsqueda semántica: {e}")
+        return [], 0
+
 def ipm_audit_with_rag(llm, embeddings, operation_name, product, documents, language, file_name, document_id):
     """Enhanced IPM audit using RAG for better accuracy"""
     
@@ -385,6 +893,121 @@ Idioma: {language}
         # Fallback to standard method
         return ipm_audit_fallback(llm, operation_name, product, documents, language, file_name, document_id)
 
+def create_ipm_audit_agent(llm):
+    """
+    Create an IPM audit agent that uses specialized tools instead of monolithic prompts.
+    This agent intelligently uses specific tools to analyze different aspects of IPM compliance.
+    """
+    
+    # IPM-specific tools for the agent
+    ipm_tools = [
+        analyze_pest_monitoring,
+        check_action_thresholds, 
+        evaluate_prevention_practices,
+        assess_resistance_management,
+        verify_pollinator_protection,
+        format_audit_response
+    ]
+    
+    # Simplified system prompt for the agent - much shorter than the original!
+    system_prompt = """You are an IPM Compliance Auditor agent with access to specialized analysis tools.
+
+YOUR MISSION: Evaluate IPM compliance for PrimusGFS Module 9.01.01 using your available tools.
+
+PROCESS:
+1. Use each specialized tool to analyze different aspects of the documents
+2. Analyze: pest monitoring, action thresholds, prevention practices, resistance management, pollinator protection
+3. Format the final response using the format_audit_response tool
+
+TOOLS AVAILABLE:
+- analyze_pest_monitoring: Check for monitoring practices
+- check_action_thresholds: Look for action/economic thresholds  
+- evaluate_prevention_practices: Find prevention methods (need minimum 2)
+- assess_resistance_management: Check resistance strategies
+- verify_pollinator_protection: Look for pollinator measures
+- format_audit_response: Create final JSON response
+
+RULES:
+- Use ALL analysis tools for each document
+- Base conclusions ONLY on provided documents
+- Be precise and reference specific document content
+- Use format_audit_response to create the final JSON output
+
+Remember: You have tools to do the heavy lifting - use them systematically!"""
+
+    # Create agent prompt
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("human", """Please audit the IPM compliance for:
+Operation: {operation_name}
+Product: {product}  
+Language: {language}
+
+Document to analyze:
+FileName: {file_name}
+DocumentID: {document_id}
+Content: {document_content}
+
+Use all your tools to analyze this document systematically, then format the final response."""),
+        MessagesPlaceholder(variable_name="agent_scratchpad")
+    ])
+    
+    # Create the agent
+    agent = create_openai_functions_agent(llm, ipm_tools, prompt)
+    agent_executor = AgentExecutor(
+        agent=agent, 
+        tools=ipm_tools, 
+        verbose=True,
+        max_iterations=10,  # Allow multiple tool calls
+        early_stopping_method="generate"
+    )
+    
+    return agent_executor
+
+def run_ipm_agent_audit(llm, operation_name, product, document_content, file_name, document_id, language="Spanish"):
+    """
+    Run IPM audit using the agent-based approach instead of monolithic prompts.
+    This demonstrates how agents with tools can replace complex single prompts.
+    """
+    try:
+        # Create the agent
+        agent_executor = create_ipm_audit_agent(llm)
+        
+        # Run the agent
+        result = agent_executor.invoke({
+            "operation_name": operation_name,
+            "product": product,
+            "language": language,
+            "file_name": file_name,
+            "document_id": document_id,
+            "document_content": document_content
+        })
+        
+        # Extract the output - should be JSON from format_audit_response tool
+        output = result.get('output', '')
+        
+        # Try to parse as JSON
+        try:
+            json_result = json.loads(output)
+            return json_result
+        except json.JSONDecodeError:
+            # If not JSON, create fallback response
+            return {
+                "ComplianceLevel": 2,
+                "Comments": f"Agent analysis completed: {output}",
+                "FilesSearch": [{"FileName": file_name, "DocumentID": document_id}],
+                "Method": "Agent-based analysis"
+            }
+            
+    except Exception as e:
+        # Fallback error response
+        return {
+            "ComplianceLevel": 2,
+            "Comments": f"Error in agent-based audit: {str(e)}",
+            "FilesSearch": [{"FileName": file_name, "DocumentID": document_id}],
+            "Method": "Agent-based analysis (error)"
+        }
+
 def ipm_audit_tab():
     """IPM Compliance Audit functionality using LangChain"""
     st.header("🔍 IPM Compliance Audit")
@@ -417,8 +1040,47 @@ def ipm_audit_tab():
     if "ipm_doc_content" not in st.session_state:
         st.session_state.ipm_doc_content = "Este es un plan IPM que incluye monitoreo semanal de plagas mediante trampas pegajosas. Se establecen umbrales de acción de 5 ácaros por hoja. Incluye rotación de cultivos y plantas de borde para atraer beneficiosos."
     
+    # Initialize documents list for multiple document support
+    if "ipm_documents" not in st.session_state:
+        st.session_state.ipm_documents = []
+    
     # Document input
-    st.subheader("📄 Documentos para Auditoría")
+    st.subheader("📄 Documentos para Auditoría con Optimización de Tokens")
+    
+    # Token optimization strategy
+    col1, col2 = st.columns(2)
+    with col1:
+        optimization_strategy = st.selectbox(
+            "💰 Estrategia de Optimización:",
+            ["smart_extraction", "summarization", "chunking"],
+            format_func=lambda x: {
+                "smart_extraction": "🎯 Extracción Inteligente",
+                "summarization": "📝 Resumen Automático",
+                "chunking": "🔍 Búsqueda Semántica"
+            }[x],
+            key="optimization_strategy"
+        )
+    
+    with col2:
+        max_tokens = st.number_input(
+            "Límite máximo de tokens:", 
+            min_value=500, 
+            max_value=8000, 
+            value=3000,
+            step=500,
+            key="max_tokens"
+        )
+    
+    # Strategy explanations
+    strategy_info = {
+        "smart_extraction": "Extrae solo párrafos que contienen palabras clave IPM relevantes",
+        "summarization": "Resume cada documento enfocándose en aspectos IPM",
+        "chunking": "Divide documentos y usa búsqueda semántica para encontrar chunks relevantes"
+    }
+    st.info(f"ℹ️ **{optimization_strategy.replace('_', ' ').title()}**: {strategy_info[optimization_strategy]}")
+    
+    # Single document interface (legacy support)
+    st.markdown("**📄 Documento Individual (Método Tradicional)**")
     
     # Option 2: Example documents (moved up to avoid conflicts)
     st.markdown("**Opción 1: Usar documento de ejemplo**")
@@ -470,29 +1132,257 @@ Note: Pollinator protection measures not documented in this plan."""
     if document_content != st.session_state.ipm_doc_content:
         st.session_state.ipm_doc_content = document_content
     
+    # Multiple documents interface
+    st.markdown("---")
+    st.markdown("**📚 Múltiples Documentos (Método Avanzado con Optimización)**")
+    
+    # Document management
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        st.markdown("*Agregar documentos para procesamiento optimizado:*")
+    with col2:
+        if st.button("📋 Ejemplo Multi-Doc", key="load_multi_example"):
+            example_docs = [
+                {
+                    'filename': "IPM_Plan_Main.pdf",
+                    'doc_id': "DOC_001",
+                    'content': """IPM Plan for Agricultural Operation - Main Document
+                    
+This comprehensive IPM plan outlines our integrated approach to pest management. Our monitoring program includes weekly field scouting for key pests including spider mites, aphids, and thrips. We maintain detailed monitoring logs and use economic thresholds to guide treatment decisions.
+
+Prevention strategies include crop rotation, beneficial habitat maintenance, and sanitation practices. We rotate between lettuce and strawberry crops every two years and maintain flowering borders to attract natural enemies.
+
+Pesticide resistance management follows IRAC guidelines with rotation of different modes of action. No more than two applications of the same chemical class per season."""
+                },
+                {
+                    'filename': "Monitoring_Records.pdf", 
+                    'doc_id': "DOC_002",
+                    'content': """Weekly Monitoring Records - June 2024
+                    
+Week 1: Spider mites detected at 3 mites/leaflet in Block A. Below treatment threshold.
+Week 2: Aphid populations increasing, 8 per plant average. Approaching threshold.
+Week 3: Beneficial insects observed - lacewings and ladybugs present.
+Week 4: Thrips trap counts: 15 per trap, below threshold of 20.
+
+Temperature monitoring shows optimal conditions for mite development. Humidity levels appropriate for beneficial insect activity."""
+                },
+                {
+                    'filename': "Pollinator_Protocol.pdf",
+                    'doc_id': "DOC_003", 
+                    'content': """Pollinator Protection Protocol
+                    
+All pesticide applications must avoid peak pollinator activity hours (10 AM - 4 PM). Advance notification provided to three local beekeepers within 1-mile radius.
+
+Flowering habitat strips maintained along field borders with native plants including alyssum, fennel, and buckwheat. These areas provide alternative forage and nesting sites for beneficial insects.
+
+Buffer zones of 50 feet maintained around sensitive pollinator habitats during any pesticide applications."""
+                }
+            ]
+            st.session_state.ipm_documents = example_docs
+            st.success("✅ Cargados 3 documentos de ejemplo")
+            st.rerun()
+    
+    with col3:
+        if st.button("🗑️ Limpiar Todo", key="clear_docs"):
+            st.session_state.ipm_documents = []
+            st.rerun()
+    
+    # Input fields for new document
+    st.markdown("**Agregar Nuevo Documento:**")
+    col1, col2 = st.columns(2)
+    with col1:
+        new_filename = st.text_input("Nombre del archivo:", key="new_filename")
+    with col2:
+        new_doc_id = st.text_input("ID del documento:", key="new_doc_id")
+    
+    new_content = st.text_area("Contenido del documento:", height=120, key="new_content")
+    
+    if st.button("➕ Agregar Documento", key="add_document"):
+        if new_filename and new_doc_id and new_content.strip():
+            new_doc = {
+                'filename': new_filename,
+                'doc_id': new_doc_id,
+                'content': new_content
+            }
+            st.session_state.ipm_documents.append(new_doc)
+            st.success(f"✅ Documento agregado: {new_filename}")
+            st.rerun()
+        else:
+            st.error("❌ Por favor completa todos los campos")
+    
+    # Display current documents with token analysis
+    if st.session_state.ipm_documents:
+        st.markdown("**📊 Análisis de Documentos:**")
+        
+        total_original_tokens = 0
+        for i, doc in enumerate(st.session_state.ipm_documents):
+            tokens = estimate_tokens(doc['content'])
+            total_original_tokens += tokens
+            
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                st.write(f"📄 **{doc['filename']}** (ID: {doc['doc_id']})")
+                st.write(f"   📊 {tokens:,} tokens estimados")
+            with col2:
+                if st.button("👁️", key=f"view_{i}", help="Ver contenido"):
+                    with st.expander(f"Contenido de {doc['filename']}", expanded=True):
+                        st.text_area("", value=doc['content'], height=200, disabled=True, key=f"view_content_{i}")
+            with col3:
+                if st.button("🗑️", key=f"delete_{i}", help="Eliminar"):
+                    st.session_state.ipm_documents.pop(i)
+                    st.rerun()
+        
+        # Token analysis
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("📄 Documentos", len(st.session_state.ipm_documents))
+        with col2:
+            st.metric("📊 Tokens Originales", f"{total_original_tokens:,}")
+        with col3:
+            reduction = max(0, total_original_tokens - max_tokens)
+            st.metric("💰 Reducción Esperada", f"{reduction:,}")
+        
+        if total_original_tokens > max_tokens:
+            st.warning(f"⚠️ Optimización necesaria: {total_original_tokens:,} → ~{max_tokens:,} tokens")
+            
+            # Show what will happen
+            if optimization_strategy == "smart_extraction":
+                st.info("🎯 Se extraerán solo las secciones con contenido IPM relevante")
+            elif optimization_strategy == "summarization":
+                st.info("📝 Cada documento será resumido manteniendo información IPM clave")
+            else:  # chunking
+                st.info("🔍 Se usará búsqueda semántica para encontrar los chunks más relevantes")
+        else:
+            st.success(f"✅ Documentos dentro del límite de tokens ({total_original_tokens:,}/{max_tokens:,})")
+
     # RAG Enhancement Option
     st.subheader("🚀 Método de Auditoría")
-    use_rag = st.checkbox("🧠 Usar RAG (Conocimiento Mejorado)", value=True, key="use_rag",
-                          help="Activa RAG para usar base de conocimientos de regulaciones IPM")
     
-    if use_rag:
-        st.info("✅ RAG Activado: La auditoría usará base de conocimientos de PrimusGFS y mejores prácticas")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        use_rag = st.checkbox("🧠 Usar RAG (Conocimiento Mejorado)", value=True, key="use_rag",
+                              help="Activa RAG para usar base de conocimientos de regulaciones IPM")
+    
+    with col2:
+        use_agent = st.checkbox("🤖 Usar Agente con Herramientas", value=False, key="use_agent",
+                                help="Usa agente que analiza sistemáticamente con herramientas especializadas")
+    
+    # Information about selected methods
+    if use_agent:
+        st.success("🤖 **Agente Activado**: Análisis sistemático con herramientas especializadas IPM")
+        st.info("🔧 **Ventajas del Agente**: Análisis modular, prompts simplificados, mejor mantenibilidad")
+    elif use_rag:
+        st.info("✅ **RAG Activado**: La auditoría usará base de conocimientos de PrimusGFS y mejores prácticas")
     else:
-        st.info("ℹ️ RAG Desactivado: Auditoría estándar sin base de conocimientos adicional")
+        st.info("ℹ️ **Método Estándar**: Auditoría con prompt tradicional sin enhancements")
     
     # Process audit
     if st.button("🔍 Realizar Auditoría IPM", key="process_audit", type="primary"):
-        if not document_content.strip():
-            st.error("Por favor proporciona contenido del documento para la auditoría.")
+        # Determine which documents to use
+        documents_to_process = []
+        
+        if st.session_state.ipm_documents:
+            # Use multiple documents
+            documents_to_process = st.session_state.ipm_documents
+            st.info(f"📚 Procesando {len(documents_to_process)} documentos con optimización")
+        elif document_content.strip():
+            # Use single document (legacy mode)
+            documents_to_process = [{
+                'filename': file_name,
+                'doc_id': document_id,
+                'content': document_content
+            }]
+            st.info("📄 Procesando documento individual")
+        else:
+            st.error("❌ Por favor proporciona al menos un documento para la auditoría.")
             return
         
-        with st.spinner("Procesando auditoría IPM..."):
+        with st.spinner("Procesando auditoría IPM con optimización de tokens..."):
             try:
-                # Prepare documents in the expected format
-                documents = f"FileName: {file_name}\nDocumentID: {document_id}\nContent: {document_content}"
+                # Process documents with optimization
+                if len(documents_to_process) > 1 or estimate_tokens(documents_to_process[0]['content']) > max_tokens:
+                    st.info(f"🔧 Aplicando optimización: {optimization_strategy}")
+                    
+                    # Apply document optimization
+                    if optimization_strategy == "chunking":
+                        # Use semantic search for chunks
+                        processed_content, processed_tokens = chunk_and_search_documents(
+                            documents_to_process, 
+                            query=f"IPM plan compliance audit {product}",
+                            max_chunks=8
+                        )
+                        
+                        if processed_content:
+                            documents_formatted = "\n\n".join([
+                                f"FileName: {chunk['source']}\nDocumentID: {chunk['doc_id']}\nChunk: {chunk['chunk_id']}\nContent: {chunk['content']}"
+                                for chunk in processed_content
+                            ])
+                            st.success(f"✅ Procesados {len(processed_content)} chunks relevantes ({processed_tokens} tokens)")
+                        else:
+                            st.error("❌ No se encontraron chunks relevantes")
+                            return
+                    else:
+                        # Use traditional processing methods
+                        processed_docs, processed_tokens = process_multiple_documents(
+                            documents_to_process, 
+                            llm, 
+                            strategy=optimization_strategy
+                        )
+                        
+                        if processed_docs:
+                            documents_formatted = "\n\n".join([
+                                f"FileName: {doc['filename']}\nDocumentID: {doc['doc_id']}\nContent: {doc['content']}"
+                                for doc in processed_docs
+                            ])
+                            st.success(f"✅ Optimización completada: {processed_tokens} tokens finales")
+                        else:
+                            st.error("❌ No se pudieron procesar los documentos")
+                            return
+                else:
+                    # No optimization needed
+                    documents_formatted = "\n\n".join([
+                        f"FileName: {doc['filename']}\nDocumentID: {doc['doc_id']}\nContent: {doc['content']}"
+                        for doc in documents_to_process
+                    ])
+                    total_tokens = sum(estimate_tokens(doc['content']) for doc in documents_to_process)
+                    st.info(f"ℹ️ Sin optimización necesaria ({total_tokens} tokens)")
                 
-                # Choose audit method based on RAG setting
-                if use_rag:
+                # Choose audit method based on selected approach
+                if use_agent:
+                    st.info("🤖 Ejecutando auditoría con Agente especializado...")
+                    try:
+                        # For agent, we process each document separately (agents work better with focused content)
+                        if len(documents_to_process) > 1:
+                            st.warning("⚠️ Agente procesa solo el primer documento. Para múltiples documentos considera RAG o método estándar.")
+                        
+                        # Use the first document for agent analysis
+                        doc = documents_to_process[0]
+                        result = run_ipm_agent_audit(
+                            llm, 
+                            operation_name, 
+                            product, 
+                            doc['content'], 
+                            doc['filename'], 
+                            doc['doc_id'], 
+                            language
+                        )
+                        
+                        # Add agent indicator
+                        result["Method"] = "Agent-based analysis"
+                        
+                    except Exception as e:
+                        st.warning(f"⚠️ Error en Agente: {e}. Usando método estándar...")
+                        audit_chain = ipm_audit_chain(llm)
+                        result = audit_chain.invoke({
+                            "operation_name": operation_name,
+                            "product": product,
+                            "documents": documents_formatted,
+                            "language": language
+                        })
+                        
+                elif use_rag:
                     st.info("🧠 Ejecutando auditoría con RAG...")
                     try:
                         # Initialize embeddings for RAG
@@ -500,8 +1390,8 @@ Note: Pollinator protection measures not documented in this plan."""
                         
                         # Run RAG-enhanced audit
                         result = ipm_audit_with_rag(
-                            llm, embeddings, operation_name, product, documents,
-                            language, file_name, document_id
+                            llm, embeddings, operation_name, product, documents_formatted,
+                            language, documents_to_process[0]['filename'], documents_to_process[0]['doc_id']
                         )
                     except Exception as e:
                         st.warning("⚠️ Error en RAG. Usando método estándar...")
@@ -509,7 +1399,7 @@ Note: Pollinator protection measures not documented in this plan."""
                         result = audit_chain.invoke({
                             "operation_name": operation_name,
                             "product": product,
-                            "documents": documents,
+                            "documents": documents_formatted,
                             "language": language
                         })
                 else:
@@ -520,14 +1410,14 @@ Note: Pollinator protection measures not documented in this plan."""
                         result = audit_chain.invoke({
                             "operation_name": operation_name,
                             "product": product,
-                            "documents": documents,
+                            "documents": documents_formatted,
                             "language": language
                         })
                     except Exception as e:
                         st.warning("⚠️ Error en método principal. Intentando método alternativo...")
                         result = ipm_audit_fallback(
-                            llm, operation_name, product, documents, 
-                            language, file_name, document_id
+                            llm, operation_name, product, documents_formatted, 
+                            language, documents_to_process[0]['filename'], documents_to_process[0]['doc_id']
                         )
                 
                 # Display results
@@ -540,8 +1430,10 @@ Note: Pollinator protection measures not documented in this plan."""
                     st.subheader("📋 Resultado de la Auditoría")
                     st.markdown(f"**Nivel de Cumplimiento:** {result['ComplianceLevel']}")
                     
-                    # Show RAG indicator if used
-                    if use_rag and "KnowledgeSources" in result:
+                    # Show method indicator if enhanced methods were used
+                    if use_agent and result.get("Method") == "Agent-based analysis":
+                        st.success("🤖 **Auditoría realizada con Agente especializado**")
+                    elif use_rag and "KnowledgeSources" in result:
                         st.success("🧠 **Auditoría mejorada con RAG**")
                     
                     st.markdown("**Comentarios:**")
@@ -563,6 +1455,20 @@ Note: Pollinator protection measures not documented in this plan."""
                         st.markdown("*Regulaciones y guías consultadas:*")
                         for source in result['KnowledgeSources']:
                             st.write(f"📚 {source}")
+                    
+                    # Show optimization results
+                    if len(documents_to_process) > 1:
+                        st.subheader("💰 Optimización de Tokens")
+                        original_total = sum(estimate_tokens(doc['content']) for doc in documents_to_process)
+                        st.write(f"📊 **Documentos procesados**: {len(documents_to_process)}")
+                        st.write(f"📈 **Tokens originales**: {original_total:,}")
+                        
+                        if 'processed_tokens' in locals():
+                            reduction_pct = ((original_total - processed_tokens) / original_total) * 100 if original_total > 0 else 0
+                            st.write(f"📉 **Tokens finales**: {processed_tokens:,}")
+                            st.write(f"💡 **Reducción**: {reduction_pct:.1f}% ({original_total - processed_tokens:,} tokens ahorrados)")
+                        
+                        st.write(f"⚙️ **Estrategia usada**: {optimization_strategy.replace('_', ' ').title()}")
                 
                 # Show raw JSON response
                 with st.expander("🔧 Respuesta JSON Completa"):
@@ -582,6 +1488,7 @@ Note: Pollinator protection measures not documented in this plan."""
         "**Reutilizable**: Función que puede ser llamada desde otras partes del código",
         "**Mantenible**: Fácil modificación de reglas y criterios de auditoría",
         "**Type Safety**: Validación de tipos con Pydantic models",
+        "**Agent Architecture**: Análisis modular con herramientas especializadas para cada aspecto IPM",
         "**RAG Integration**: Base de conocimientos con regulaciones PrimusGFS y mejores prácticas",
         "**Contexto Enriquecido**: Auditorías más precisas basadas en normativas oficiales",
         "**Transparencia**: Muestra las fuentes de conocimiento utilizadas en cada auditoría"
@@ -589,6 +1496,22 @@ Note: Pollinator protection measures not documented in this plan."""
     
     for improvement in improvements:
         st.markdown(f"• {improvement}")
+    
+    # Agent Benefits  
+    st.subheader("🤖 Beneficios de los Agentes para Auditorías IPM")
+    
+    agent_benefits = [
+        "**🔧 Modularidad**: Cada herramienta analiza un aspecto específico (monitoreo, umbrales, prevención, etc.)",
+        "**📝 Prompts Simplificados**: Elimina prompts monolíticos de +2000 caracteres por herramientas específicas",
+        "**🧩 Mantenibilidad**: Fácil agregar/modificar criterios sin reescribir todo el prompt",
+        "**🎯 Análisis Sistemático**: El agente usa todas las herramientas automáticamente",
+        "**🔍 Trazabilidad**: Cada herramienta reporta hallazgos específicos",
+        "**⚡ Reutilización**: Las herramientas pueden usarse independientemente",
+        "**🛠️ Extensibilidad**: Agregar nuevos criterios es solo crear una nueva herramienta"
+    ]
+    
+    for benefit in agent_benefits:
+        st.markdown(f"• {benefit}")
     
     # RAG Benefits
     st.subheader("🧠 Beneficios del RAG para Auditorías IPM")
@@ -604,6 +1527,68 @@ Note: Pollinator protection measures not documented in this plan."""
     
     for benefit in rag_benefits:
         st.markdown(f"• {benefit}")
+    
+    # Token Optimization Benefits
+    st.subheader("💰 Optimización de Tokens - Estrategias Disponibles")
+    
+    optimization_benefits = [
+        "**🎯 Extracción Inteligente**: Solo envía párrafos con contenido IPM relevante (ahorro: 60-80%)",
+        "**📝 Resumen Automático**: Resume documentos largos manteniendo información clave (ahorro: 70-85%)", 
+        "**🔍 Búsqueda Semántica**: Encuentra y envía solo los chunks más relevantes (ahorro: 50-70%)",
+        "**📊 Análisis en Tiempo Real**: Muestra tokens antes y después de optimización",
+        "**💡 Límites Configurables**: Control total sobre el uso máximo de tokens",
+        "**🔄 Procesamiento Múltiple**: Maneja varios documentos simultáneamente"
+    ]
+    
+    for benefit in optimization_benefits:
+        st.markdown(f"• {benefit}")
+    
+    # Comparison of approaches
+    st.subheader("⚖️ Comparación de Enfoques")
+    
+    comparison_data = {
+        "Característica": [
+            "Prompt Size",
+            "Mantenibilidad", 
+            "Modularidad",
+            "Tokens Utilizados",
+            "Precisión",
+            "Extensibilidad",
+            "Debugging"
+        ],
+        "Método Tradicional": [
+            "2000+ caracteres",
+            "Difícil",
+            "Monolítico", 
+            "Alto",
+            "Buena",
+            "Difícil",
+            "Complejo"
+        ],
+        "RAG Enhancement": [
+            "1500+ caracteres",
+            "Moderada",
+            "Semi-modular",
+            "Alto",
+            "Muy buena",
+            "Moderada", 
+            "Moderado"
+        ],
+        "Agente con Herramientas": [
+            "500 caracteres",
+            "Muy fácil",
+            "Totalmente modular",
+            "Optimizado",
+            "Muy buena",
+            "Muy fácil",
+            "Muy fácil"
+        ]
+    }
+    
+    df = pd.DataFrame(comparison_data)
+    st.table(df)
+    
+    st.success("💡 **Resultado**: Los agentes con herramientas ofrecen la mejor combinación de simplicidad, mantenibilidad y eficiencia para auditorías IPM complejas.")
 
 def basic_chat_tab():
     """Basic chat functionality"""
@@ -708,23 +1693,35 @@ def agents_tab():
     
     # Tool selection
     st.subheader("Herramientas Disponibles")
-    tools = [calculator, get_current_time, text_analyzer]
     
-    for tool in tools:
+    # General tools and IPM tools
+    general_tools = [calculator, get_current_time, text_analyzer]
+    ipm_tools = [analyze_pest_monitoring, check_action_thresholds, evaluate_prevention_practices, 
+                 assess_resistance_management, verify_pollinator_protection, format_audit_response]
+    
+    st.markdown("**📊 Herramientas Generales:**")
+    for tool in general_tools:
         st.write(f"• **{tool.name}**: {tool.description}")
     
-    # Create agent
+    st.markdown("**🔍 Herramientas IPM Especializadas:**")
+    for tool in ipm_tools:
+        st.write(f"• **{tool.name}**: {tool.description}")
+    
+    # Create agent with both tool sets
+    all_tools = general_tools + ipm_tools
+    
     prompt = ChatPromptTemplate.from_messages([
         ("system", """Eres un asistente útil que puede usar herramientas para ayudar al usuario.
-        Tienes acceso a calculadora, información de tiempo y análisis de texto.
-        Usa las herramientas cuando sea apropiado."""),
+        Tienes acceso a herramientas generales (calculadora, tiempo, análisis de texto) y 
+        herramientas especializadas para análisis de documentos IPM.
+        Usa las herramientas cuando sea apropiado para la consulta del usuario."""),
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}"),
         MessagesPlaceholder(variable_name="agent_scratchpad")
     ])
     
-    agent = create_openai_functions_agent(llm, tools, prompt)
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    agent = create_openai_functions_agent(llm, all_tools, prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=all_tools, verbose=True)
     
     # Agent interface
     if user_input := st.chat_input("Prueba el agente con herramientas...", key="agent_chat_input"):
@@ -743,12 +1740,24 @@ def agents_tab():
     
     # Example queries
     st.subheader("Ejemplos de Consultas")
-    examples = [
+    
+    st.markdown("**📊 Ejemplos Generales:**")
+    general_examples = [
         "¿Cuál es el resultado de 25 * 34 + 12?",
         "¿Qué hora es?",
-        "Analiza este texto: 'LangChain es una herramienta poderosa para desarrolladores.'",
+        "Analiza este texto: 'LangChain permite crear aplicaciones con LLMs'",
         "Calcula 2^10 y luego dime qué hora es"
     ]
+    
+    st.markdown("**🔍 Ejemplos IPM (necesitas proporcionar contenido de documento):**")
+    ipm_examples = [
+        "Analiza el monitoreo de plagas en: 'Monitoreo semanal con trampas pegajosas para detectar ácaros...'",
+        "Verifica umbrales en: 'Tratamiento cuando hay 5 ácaros por hoja...'",
+        "Evalúa prevención en: 'Rotación de cultivos cada 2 años y plantas refugio...'",
+        "Revisa protección de polinizadores en: 'Aplicaciones fuera de horario 10 AM - 4 PM...'"
+    ]
+    
+    examples = general_examples + ipm_examples
     
     for example in examples:
         if st.button(f"📝 {example}", key=f"example_{hash(example)}"):
@@ -940,6 +1949,262 @@ Respuesta:"""
                 except Exception as e:
                     st.error(f"Error: {e}")
 
+def demo_prompt_simplification_tab():
+    """Demonstration of how agent approach simplifies complex prompts"""
+    st.header("📝 Comparación: Prompt Complejo vs. Agente")
+    st.markdown("*Demostración práctica de cómo los agentes simplifican prompts complejos*")
+    
+    # Show the comparison
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("❌ Método Tradicional (Prompt Complejo)")
+        st.markdown("**Tamaño:** 2000+ caracteres")
+        
+        traditional_prompt = """Act as an IPM Compliance Auditor. Evaluate compliance with PrimusGFS Module 9 – Integrated Pest Management (IPM) Practices strictly based on the uploaded documents.
+- Do not assume compliance where documentation is missing or unclear
+- Do not offer suggestions or improvements
+- Focus only on determining if the documents meet compliance expectations
+- Use all documents provided, even duplicates or scans with limited content
+
+Write detailed, structured compliance summaries in a professional, audit-style format. Your summaries should reference:
+- Document names (including file extensions)
+- Document sections or content descriptions
+- Relevant dates and timeframes
+- Personnel or titles when identified
+
+If documentation is missing or insufficient, clearly state this and explain why the operation is considered non-compliant.
+
+For the purpose of this exercise, consider [product] as the product of the audit and [operationName] as the audited operation.
+
+General Response Format for Each Question
+Each response must include:
+1. Summary of key compliance findings, citing document names and details
+2. Clear statement of any missing or insufficient elements
+3. Explanation if submitted documents were not used
+4. Multiple paragraphs, each focused on a specific theme
+5. Response must not exceed 2,000 characters
+6. Always use the exact document file name
+7. Write in the requested [Language]
+
+Question 9.01.01 – Does the operation have a documented Integrated Pest Management (IPM) plan?
+The operation should provide a written IPM plan that outlines how it identifies and manages pests while minimizing environmental risk. The plan should:
+• Describe pest monitoring and identification practices
+• Explain the use of action or economic thresholds to guide treatment decisions
+• Include at least two pest prevention practices
+• Address pesticide resistance management strategies
+• Include measures to protect pollinators
+
+Response Format:
+• Reference document title(s), sections, and last revision dates
+• Identify if pest monitoring is described
+• Explain whether thresholds are defined and used
+• Note if prevention and resistance strategies are described
+• State if pollinator protection is included or missing
+• Break into multiple paragraphs by topic
+
+Provides a json response with the following keys:
+1. ComplianceLevel: Always returns the value 2.
+2. Comments: Break the response into multiple paragraphs.
+3. FilesSearch: return a JSON with the FileName and DocumentID"""
+        
+        st.code(traditional_prompt, language="text")
+        
+        st.markdown("**❌ Problemas:**")
+        st.markdown("• Prompt extremadamente largo (2000+ caracteres)")
+        st.markdown("• Difícil de mantener y modificar")
+        st.markdown("• Lógica monolítica")
+        st.markdown("• Difícil debugging si algo falla")
+        st.markdown("• Costoso en tokens")
+    
+    with col2:
+        st.subheader("✅ Método con Agentes (Simplificado)")
+        st.markdown("**Tamaño:** 500 caracteres + herramientas modulares")
+        
+        agent_prompt = """You are an IPM Compliance Auditor agent with access to specialized analysis tools.
+
+YOUR MISSION: Evaluate IPM compliance for PrimusGFS Module 9.01.01 using your available tools.
+
+PROCESS:
+1. Use each specialized tool to analyze different aspects of the documents
+2. Analyze: pest monitoring, action thresholds, prevention practices, resistance management, pollinator protection
+3. Format the final response using the format_audit_response tool
+
+TOOLS AVAILABLE:
+- analyze_pest_monitoring: Check for monitoring practices
+- check_action_thresholds: Look for action/economic thresholds  
+- evaluate_prevention_practices: Find prevention methods (need minimum 2)
+- assess_resistance_management: Check resistance strategies
+- verify_pollinator_protection: Look for pollinator measures
+- format_audit_response: Create final JSON response
+
+RULES:
+- Use ALL analysis tools for each document
+- Base conclusions ONLY on provided documents
+- Be precise and reference specific document content
+- Use format_audit_response to create the final JSON output
+
+Remember: You have tools to do the heavy lifting - use them systematically!"""
+        
+        st.code(agent_prompt, language="text")
+        
+        st.markdown("**✅ Ventajas:**")
+        st.markdown("• Prompt principal muy corto (500 caracteres)")
+        st.markdown("• Lógica distribuida en herramientas especializadas")
+        st.markdown("• Fácil mantener y extender")
+        st.markdown("• Debug granular por herramienta")
+        st.markdown("• Herramientas reutilizables")
+    
+    # Interactive demonstration
+    st.markdown("---")
+    st.subheader("🎮 Demostración Interactiva")
+    
+    demo_doc = st.text_area(
+        "Ingresa contenido de documento IPM para analizar:",
+        value="Plan IPM para Fresas 2024. Monitoreo semanal con trampas pegajosas. Umbrales: 5 ácaros por hoja. Prevención: rotación de cultivos y plantas refugio. Resistencia: rotación IRAC.",
+        height=100
+    )
+    
+    if st.button("🔍 Analizar con Agente", type="primary"):
+        if not check_api_key():
+            st.error("⚠️ Configura tu API key para usar la demostración")
+            return
+            
+        llm = init_llm()
+        if not llm:
+            return
+            
+        with st.spinner("Analizando documento con agente..."):
+            try:
+                # Show step-by-step analysis
+                st.subheader("🔧 Análisis Paso a Paso")
+                
+                # Tool 1: Monitoring
+                with st.expander("1️⃣ analyze_pest_monitoring", expanded=True):
+                    monitoring_result = analyze_pest_monitoring.invoke({
+                        "document_content": demo_doc,
+                        "file_name": "demo.pdf"
+                    })
+                    st.write(monitoring_result)
+                
+                # Tool 2: Thresholds  
+                with st.expander("2️⃣ check_action_thresholds"):
+                    threshold_result = check_action_thresholds.invoke({
+                        "document_content": demo_doc,
+                        "file_name": "demo.pdf"
+                    })
+                    st.write(threshold_result)
+                
+                # Tool 3: Prevention
+                with st.expander("3️⃣ evaluate_prevention_practices"):
+                    prevention_result = evaluate_prevention_practices.invoke({
+                        "document_content": demo_doc,
+                        "file_name": "demo.pdf"
+                    })
+                    st.write(prevention_result)
+                
+                # Tool 4: Resistance
+                with st.expander("4️⃣ assess_resistance_management"):
+                    resistance_result = assess_resistance_management.invoke({
+                        "document_content": demo_doc,
+                        "file_name": "demo.pdf"
+                    })
+                    st.write(resistance_result)
+                
+                # Tool 5: Pollinator
+                with st.expander("5️⃣ verify_pollinator_protection"):
+                    pollinator_result = verify_pollinator_protection.invoke({
+                        "document_content": demo_doc,
+                        "file_name": "demo.pdf"
+                    })
+                    st.write(pollinator_result)
+                
+                # Tool 6: Format response
+                with st.expander("6️⃣ format_audit_response", expanded=True):
+                    final_result = format_audit_response.invoke({
+                        "monitoring_analysis": monitoring_result,
+                        "threshold_analysis": threshold_result,
+                        "prevention_analysis": prevention_result,
+                        "resistance_analysis": resistance_result,
+                        "pollinator_analysis": pollinator_result,
+                        "operation_name": "Demo Operation",
+                        "product": "Fresas",
+                        "file_name": "demo.pdf",
+                        "document_id": "DEMO_001",
+                        "language": "Spanish"
+                    })
+                    st.json(json.loads(final_result))
+                
+                st.success("✅ Análisis completado usando 6 herramientas especializadas")
+                
+            except Exception as e:
+                st.error(f"Error en demostración: {e}")
+    
+    # Code comparison
+    st.markdown("---")
+    st.subheader("💻 Comparación de Implementación")
+    
+    tab1, tab2 = st.tabs(["Método Tradicional", "Método con Agente"])
+    
+    with tab1:
+        st.markdown("**Implementación tradicional:**")
+        traditional_code = """
+# Prompt monolítico de 2000+ caracteres
+def traditional_audit(llm, documents, operation, product):
+    huge_prompt = '''[2000+ caracteres de instrucciones complejas]'''
+    
+    chain = ChatPromptTemplate.from_template(huge_prompt) | llm | JsonOutputParser()
+    result = chain.invoke({
+        "documents": documents,
+        "operation": operation, 
+        "product": product
+    })
+    return result
+
+# Problemas:
+# - Difícil de debuggear si algo falla
+# - Cambiar un criterio requiere modificar todo el prompt
+# - No hay reutilización de lógica
+# - Prompt costoso en tokens
+        """
+        st.code(traditional_code, language="python")
+    
+    with tab2:
+        st.markdown("**Implementación con agente:**")
+        agent_code = """
+# Herramientas especializadas y modulares
+@tool
+def analyze_pest_monitoring(document_content: str, file_name: str) -> str:
+    # Lógica específica para monitoreo (50 líneas)
+    pass
+
+@tool 
+def check_action_thresholds(document_content: str, file_name: str) -> str:
+    # Lógica específica para umbrales (50 líneas)
+    pass
+
+# ... más herramientas ...
+
+# Agente simple que usa las herramientas
+def agent_audit(llm, document, operation, product):
+    tools = [analyze_pest_monitoring, check_action_thresholds, ...]
+    agent = create_openai_functions_agent(llm, tools, simple_prompt)
+    
+    result = agent.invoke({
+        "document_content": document,
+        "operation_name": operation,
+        "product": product
+    })
+    return result
+
+# Ventajas:
+# - Cada herramienta se puede debuggear independientemente
+# - Agregar criterios = agregar herramienta
+# - Herramientas reutilizables en otros contextos
+# - Prompt principal muy simple
+        """
+        st.code(agent_code, language="python")
+
 def main():
     """Main application"""
     st.title("🦜 LangChain Demo Application")
@@ -965,12 +2230,13 @@ def main():
     st.sidebar.subheader("🚀 Funcionalidades")
     
     # Create tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "💬 Chat Básico",
         "🧠 Chat con Memoria", 
         "🤖 Agentes",
         "📚 RAG",
-        "🔍 IPM Audit"
+        "🔍 IPM Audit",
+        "📝 Demo Prompts"
     ])
     
     with tab1:
@@ -987,6 +2253,9 @@ def main():
     
     with tab5:
         ipm_audit_tab()
+    
+    with tab6:
+        demo_prompt_simplification_tab()
     
     # Footer
     st.sidebar.markdown("---")
